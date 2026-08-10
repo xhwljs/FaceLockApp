@@ -36,7 +36,12 @@ class AppUpdateManager(private val app: Context) {
             val forceUpdate: Boolean get() = result.forceUpdate
         }
         data object NoUpdate : State
-        data class Downloading(val progress: Int) : State
+        /** progress 0-100, downloadedBytes / totalBytes (-1 when unknown). */
+        data class Downloading(
+            val progress: Int,
+            val downloadedBytes: Long,
+            val totalBytes: Long,
+        ) : State
         data class ReadyToInstall(val apkUri: Uri, val forceUpdate: Boolean) : State
         data class Error(val message: String) : State
     }
@@ -105,10 +110,12 @@ class AppUpdateManager(private val app: Context) {
                     if (n <= 0) break
                     output.write(buf, 0, n)
                     copied += n
-                    if (total > 0) {
-                        val percent = (copied * 100 / total).toInt().coerceIn(0, 100)
-                        _state.value = State.Downloading(percent)
+                    val percent = if (total > 0) {
+                        (copied * 100 / total).toInt().coerceIn(0, 100)
+                    } else {
+                        -1
                     }
+                    _state.value = State.Downloading(percent, copied, total)
                 }
                 output.flush()
                 output.fd.sync()

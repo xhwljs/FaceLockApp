@@ -110,7 +110,10 @@ fun SettingsScreen() {
                     is com.insightface.recognizer.update.AppUpdateManager.State.UpdateAvailable ->
                         if (s.forceUpdate) "发现强制更新 v${s.result.latestVersion}"
                         else "发现新版本 v${s.result.latestVersion}"
-                    is com.insightface.recognizer.update.AppUpdateManager.State.Downloading -> "下载中 ${s.progress}%"
+                    is com.insightface.recognizer.update.AppUpdateManager.State.Downloading -> {
+                        val size = if (s.totalBytes > 0) " (${s.downloadedBytes / 1024 / 1024}/${s.totalBytes / 1024 / 1024} MB)" else ""
+                        "下载中 ${s.progress}%$size"
+                    }
                     is com.insightface.recognizer.update.AppUpdateManager.State.ReadyToInstall ->
                         if (s.forceUpdate) "已下载，请安装（强制更新）"
                         else "已下载，可安装"

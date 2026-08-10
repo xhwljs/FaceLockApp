@@ -4,7 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -22,7 +25,11 @@ import com.insightface.recognizer.update.GitHubRelease
 fun UpdateDialog(state: AppUpdateManager.State) {
     when (state) {
         is AppUpdateManager.State.UpdateAvailable -> UpdateAvailableDialog(state)
-        is AppUpdateManager.State.Downloading -> DownloadingDialog(state.progress)
+        is AppUpdateManager.State.Downloading -> DownloadingDialog(
+            progress = state.progress,
+            downloadedBytes = state.downloadedBytes,
+            totalBytes = state.totalBytes,
+        )
         is AppUpdateManager.State.ReadyToInstall -> ReadyToInstallDialog(state.apkUri, state.forceUpdate)
         is AppUpdateManager.State.Error -> ErrorDialog(state.message)
         else -> Unit
@@ -47,7 +54,14 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
             Text("发现新版本 v${state.result.latestVersion}$tag")
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // 内容可滚动，确保长更新说明也能完整查看。
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Text("当前版本：v${state.result.currentVersion}")
                 if (force) {
                     Text(
@@ -62,8 +76,7 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
                     Text(
                         text = notes
                             .replace(GitHubRelease.FORCE_UPDATE_MARKER, "")
-                            .trim()
-                            .take(600),
+                            .trim(),
                     )
                 }
                 if (!hasApk) {
@@ -90,22 +103,49 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
 }
 
 @Composable
-private fun DownloadingDialog(progress: Int) {
+private fun DownloadingDialog(
+    progress: Int,
+    downloadedBytes: Long,
+    totalBytes: Long,
+) {
     AlertDialog(
         onDismissRequest = {},
         title = { Text("正在下载更新") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 LinearProgressIndicator(
-                    progress = { progress / 100f },
+                    progress = { if (progress >= 0) progress / 100f else 0f },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text("$progress%", modifier = Modifier.padding(top = 8.dp))
+                val sizeText = if (totalBytes > 0) {
+                    "${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}"
+                } else {
+                    formatBytes(downloadedBytes)
+                }
+                val percentText = if (progress >= 0) "$progress%" else "下载中…"
+                Text(
+                    "$percentText  |  $sizeText",
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         },
         confirmButton = {},
         dismissButton = {},
     )
+}
+
+/** 将字节数格式化为人类可读的大小，如 "12.3 MB"。 */
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    var size = bytes.toDouble()
+    var unitIndex = 0
+    while (size >= 1024 && unitIndex < units.lastIndex) {
+        size /= 1024
+        unitIndex++
+    }
+    return if (unitIndex == 0) "${bytes} ${units[0]}"
+    else String.format("%.1f %s", size, units[unitIndex])
 }
 
 @Composable

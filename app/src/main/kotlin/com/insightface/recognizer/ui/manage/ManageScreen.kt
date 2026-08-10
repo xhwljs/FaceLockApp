@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,11 @@ fun ManageScreen(vm: ManageViewModel = viewModel()) {
     var editName by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<FaceRepository.FaceRecord?>(null) }
 
+    // 每次屏幕进入组合时刷新人脸库。
+    // 使用 restoreState 导航时 ViewModel 会复用，init 不会再触发，
+    // 所以必须在这里用 LaunchedEffect 确保从其他页面返回后列表是最新的。
+    LaunchedEffect(Unit) { vm.refresh() }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("人脸库管理", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
@@ -74,8 +80,10 @@ fun ManageScreen(vm: ManageViewModel = viewModel()) {
                 Text("人脸库为空，请到「识别」页面注册人脸", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
+            // 用 weight(1f) 让 LazyColumn 填充剩余空间，避免 fillMaxSize 在 Column 中
+            // 与上方元素竞争高度导致列表区域为零。
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(records, key = { it.id }) { record ->
