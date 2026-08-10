@@ -86,8 +86,6 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
                 TextButton(onClick = {}) { Text("稍后") }
             }
         },
-        dismissOnBackPress = false,
-        dismissOnClickOutside = false,
     )
 }
 
@@ -128,8 +126,6 @@ private fun ReadyToInstallDialog(apkUri: android.net.Uri, forceUpdate: Boolean) 
                 TextButton(onClick = {}) { Text("稍后") }
             }
         },
-        dismissOnBackPress = false,
-        dismissOnClickOutside = false,
     )
 }
 
