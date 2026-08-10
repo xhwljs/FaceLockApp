@@ -25,6 +25,7 @@ class UpdateChecker {
         val currentVersion: String,
         val latestVersion: String,
         val release: GitHubRelease?,
+        val forceUpdate: Boolean = false,
         val error: String? = null,
     )
 
@@ -42,19 +43,41 @@ class UpdateChecker {
                 connectTimeout = 15_000
                 readTimeout = 15_000
             }
+            // The /releases/latest endpoint never returns a prerelease, but double-check so
+            // app users never get offered a test build even if the API contract changes.
+            if (conn.responseCode != 200) {
+                val msg = conn.errorStream?.bufferedReader()?.use { it.readText() }?.take(200)
+                return@withContext CheckResult(
+                    hasUpdate = false,
+                    currentVersion = current,
+                    latestVersion = current,
+                    release = null,
+                    error = "GitHub API ${conn.responseCode}: ${msg ?: "请求失败"} ($endpoint)",
+                )
+            }
             conn.inputStream.use { stream ->
                 val body = stream.bufferedReader().use { it.readText() }
                 val release = json.decodeFromString(GitHubRelease.serializer(), body)
+                if (release.preRelease) {
+                    return@withContext CheckResult(
+                        hasUpdate = false,
+                        currentVersion = current,
+                        latestVersion = current,
+                        release = null,
+                        error = "最新版本为预发布版，已跳过",
+                    )
+                }
                 val latest = release.tagName.removePrefix("v").removePrefix("V")
                 CheckResult(
                     hasUpdate = isNewer(latest, current),
                     currentVersion = current,
                     latestVersion = latest,
                     release = release,
+                    forceUpdate = release.isForceUpdate,
                 )
             }
         } catch (e: Exception) {
-            CheckResult(false, current, current, null, error = e.message)
+            CheckResult(false, current, current, null, error = "${e.javaClass.simpleName}: ${e.message}")
         }
     }
 

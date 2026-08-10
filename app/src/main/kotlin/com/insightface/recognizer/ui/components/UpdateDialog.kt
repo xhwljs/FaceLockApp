@@ -1,5 +1,7 @@
 package com.insightface.recognizer.ui.components
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.insightface.recognizer.App
 import com.insightface.recognizer.update.AppUpdateManager
@@ -20,7 +23,7 @@ fun UpdateDialog(state: AppUpdateManager.State) {
     when (state) {
         is AppUpdateManager.State.UpdateAvailable -> UpdateAvailableDialog(state)
         is AppUpdateManager.State.Downloading -> DownloadingDialog(state.progress)
-        is AppUpdateManager.State.ReadyToInstall -> ReadyToInstallDialog(state.apkUri)
+        is AppUpdateManager.State.ReadyToInstall -> ReadyToInstallDialog(state.apkUri, state.forceUpdate)
         is AppUpdateManager.State.Error -> ErrorDialog(state.message)
         else -> Unit
     }
@@ -29,43 +32,62 @@ fun UpdateDialog(state: AppUpdateManager.State) {
 @Composable
 private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable) {
     val release = state.result.release
+    val force = state.forceUpdate
+    val hasApk = release?.apkAsset != null
+
+    // 强制更新时拦截系统返回键，避免用户绕过更新。
+    BackHandler(enabled = force) { /* swallow back press */ }
+
     AlertDialog(
         onDismissRequest = {
-            // Allow dismiss; the check restarts on next cold launch.
+            // 强制更新不允许关闭对话框；非强制更新可稍后再说。
         },
-        title = { Text("发现新版本 v${state.result.latestVersion}") },
+        title = {
+            val tag = if (force) "（强制更新）" else ""
+            Text("发现新版本 v${state.result.latestVersion}$tag")
+        },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("当前版本：v${state.result.currentVersion}")
+                if (force) {
+                    Text(
+                        "此版本为重要更新，必须升级后才能继续使用。",
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
                 release?.name?.takeIf { it.isNotBlank() }?.let {
-                    Text("版本名称：$it", modifier = Modifier.padding(top = 8.dp))
+                    Text("版本名称：$it")
                 }
-                release?.body?.takeIf { it.isNotBlank() }?.let {
+                release?.body?.takeIf { it.isNotBlank() }?.let { notes ->
                     Text(
-                        text = it.take(600),
-                        modifier = Modifier.padding(top = 8.dp),
+                        text = notes
+                            .replace(GitHubRelease.FORCE_UPDATE_MARKER, "")
+                            .trim()
+                            .take(600),
                     )
                 }
-                if (release?.apkAsset == null) {
-                    Text(
-                        "该 Release 未附带 .apk 安装包，请前往 GitHub 下载。",
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                if (!hasApk) {
+                    Text("该 Release 未附带 .apk 安装包，请前往 GitHub 下载。")
                 }
             }
         },
         confirmButton = {
-            if (release?.apkAsset != null) {
-                TextButton(onClick = { App.get().updateManager.download(release) }) {
-                    Text("立即更新")
-                }
+            if (hasApk && release != null) {
+                TextButton(onClick = {
+                    App.get().updateManager.download(release, force)
+                }) { Text("立即更新") }
             } else {
                 TextButton(onClick = {}) { Text("前往 GitHub") }
             }
         },
         dismissButton = {
-            TextButton(onClick = {}) { Text("稍后") }
+            // 强制更新时不显示「稍后」按钮，用户只能更新。
+            if (!force) {
+                TextButton(onClick = {}) { Text("稍后") }
+            }
         },
+        dismissOnBackPress = false,
+        dismissOnClickOutside = false,
     )
 }
 
@@ -89,7 +111,8 @@ private fun DownloadingDialog(progress: Int) {
 }
 
 @Composable
-private fun ReadyToInstallDialog(apkUri: android.net.Uri) {
+private fun ReadyToInstallDialog(apkUri: android.net.Uri, forceUpdate: Boolean) {
+    BackHandler(enabled = forceUpdate) { /* swallow back press */ }
     AlertDialog(
         onDismissRequest = {},
         title = { Text("更新已下载") },
@@ -100,8 +123,13 @@ private fun ReadyToInstallDialog(apkUri: android.net.Uri) {
             }
         },
         dismissButton = {
-            TextButton(onClick = {}) { Text("稍后") }
+            // 强制更新时不允许跳过安装。
+            if (!forceUpdate) {
+                TextButton(onClick = {}) { Text("稍后") }
+            }
         },
+        dismissOnBackPress = false,
+        dismissOnClickOutside = false,
     )
 }
 

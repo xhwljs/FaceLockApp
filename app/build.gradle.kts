@@ -50,12 +50,12 @@ android {
         bt.buildConfigField(
             "String",
             "GITHUB_REPO_OWNER",
-            "\"${project.findProperty("GITHUB_REPO_OWNER") ?: "nextlevelbuilder"}\""
+            "\"${project.findProperty("GITHUB_REPO_OWNER") ?: "xhwljs"}\""
         )
         bt.buildConfigField(
             "String",
             "GITHUB_REPO_NAME",
-            "\"${project.findProperty("GITHUB_REPO_NAME") ?: "InsightFaceRecognizer"}\""
+            "\"${project.findProperty("GITHUB_REPO_NAME") ?: "FaceLockApp"}\""
         )
     }
 

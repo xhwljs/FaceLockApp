@@ -27,4 +27,19 @@ data class GitHubRelease(
 
     /** The first .apk asset, or null. */
     val apkAsset: Asset? get() = assets.firstOrNull { it.isApk }
+
+    /**
+     * 强制更新标记：当 Release body 或 name 中包含 `[FORCE_UPDATE]` 时视为强制更新。
+     * 发布 Release 时在正文加入该标记即可让应用强制升级（不可跳过）。
+     */
+    val isForceUpdate: Boolean
+        get() {
+            val marker = FORCE_UPDATE_MARKER
+            return (body?.contains(marker, ignoreCase = true) == true) ||
+                (name?.contains(marker, ignoreCase = true) == true)
+        }
+
+    companion object {
+        const val FORCE_UPDATE_MARKER = "[FORCE_UPDATE]"
+    }
 }

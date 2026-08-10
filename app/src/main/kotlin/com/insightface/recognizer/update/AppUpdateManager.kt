@@ -32,10 +32,12 @@ class AppUpdateManager(private val app: Context) {
     sealed interface State {
         data object Idle : State
         data object Checking : State
-        data class UpdateAvailable(val result: UpdateChecker.CheckResult) : State
+        data class UpdateAvailable(val result: UpdateChecker.CheckResult) : State {
+            val forceUpdate: Boolean get() = result.forceUpdate
+        }
         data object NoUpdate : State
         data class Downloading(val progress: Int) : State
-        data class ReadyToInstall(val apkUri: Uri) : State
+        data class ReadyToInstall(val apkUri: Uri, val forceUpdate: Boolean) : State
         data class Error(val message: String) : State
     }
 
@@ -58,7 +60,7 @@ class AppUpdateManager(private val app: Context) {
     }
 
     /** Downloads the APK asset of an available update. */
-    fun download(release: GitHubRelease) {
+    fun download(release: GitHubRelease, forceUpdate: Boolean = false) {
         val asset = release.apkAsset ?: run {
             _state.value = State.Error("该 Release 未包含 .apk 安装包")
             return
@@ -66,7 +68,7 @@ class AppUpdateManager(private val app: Context) {
         scope.launch {
             try {
                 val uri = downloadApk(asset.browserDownloadUrl, asset.name)
-                _state.value = State.ReadyToInstall(uri)
+                _state.value = State.ReadyToInstall(uri, forceUpdate)
             } catch (e: Exception) {
                 _state.value = State.Error(e.message ?: "下载失败")
             }

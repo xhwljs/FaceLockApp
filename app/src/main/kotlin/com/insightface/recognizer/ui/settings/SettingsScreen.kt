@@ -109,9 +109,13 @@ fun SettingsScreen() {
                 when (val s = updateState) {
                     is com.insightface.recognizer.update.AppUpdateManager.State.Checking -> "检查中…"
                     is com.insightface.recognizer.update.AppUpdateManager.State.NoUpdate -> "已是最新版本"
-                    is com.insightface.recognizer.update.AppUpdateManager.State.UpdateAvailable -> "发现新版本 v${s.result.latestVersion}"
+                    is com.insightface.recognizer.update.AppUpdateManager.State.UpdateAvailable ->
+                        if (s.forceUpdate) "发现强制更新 v${s.result.latestVersion}"
+                        else "发现新版本 v${s.result.latestVersion}"
                     is com.insightface.recognizer.update.AppUpdateManager.State.Downloading -> "下载中 ${s.progress}%"
-                    is com.insightface.recognizer.update.AppUpdateManager.State.ReadyToInstall -> "已下载，可安装"
+                    is com.insightface.recognizer.update.AppUpdateManager.State.ReadyToInstall ->
+                        if (s.forceUpdate) "已下载，请安装（强制更新）"
+                        else "已下载，可安装"
                     is com.insightface.recognizer.update.AppUpdateManager.State.Error -> "失败：${s.message}"
                     com.insightface.recognizer.update.AppUpdateManager.State.Idle -> "未检查"
                 },
