@@ -1,0 +1,28 @@
+# Gradle / build
+.gradle/
+build/
+**/build/
+captures/
+.cxx/
+
+# Local config
+local.properties
+keystore.properties
+*.keystore
+*.jks
+
+# IntelliJ / Android Studio
+*.iml
+.idea/
+.DS_Store
+
+# Kotlin
+.kotlin/
+
+# Tooling (not part of the Android app)
+.trae/
+.trae-html-share-packages/
+design-system/
+
+# Native build outputs
+*.so.bak

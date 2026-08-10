@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple face scan glyph -->
+    <path
+        android:fillColor="@color/ic_launcher_foreground"
+        android:pathData="M38,30 L30,30 L30,38 M70,30 L78,30 L78,38 M38,78 L30,78 L30,70 M70,78 L78,78 L78,70 M44,52 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 M64,52 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 M44,64 Q54,72 64,64" />
+</vector>
