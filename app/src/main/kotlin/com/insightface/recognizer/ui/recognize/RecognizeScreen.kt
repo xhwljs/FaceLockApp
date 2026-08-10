@@ -145,7 +145,7 @@ private fun FaceDetailCard(face: FaceAnalyzer.Face, onRegister: (FaceAnalyzer.Fa
                 Text("人脸 #${face.index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 if (r != null && r.matched) {
-                    Text("✓ ${r.record?.name}", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
+                    Text("✓ ${r.name ?: "已匹配"}", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
                 } else {
                     Text("未识别", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

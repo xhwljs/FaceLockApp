@@ -38,6 +38,7 @@ import com.insightface.recognizer.data.FaceEngine
 import com.insightface.recognizer.data.FaceManager
 import com.insightface.recognizer.ui.theme.AppTheme
 import com.insightface.recognizer.ui.theme.LocalThemeManager
+import com.insightface.recognizer.ui.theme.colors
 
 @Composable
 fun SettingsScreen() {

@@ -8,6 +8,7 @@ import com.insightface.sdk.inspireface.base.FaceInteractionState
 import com.insightface.sdk.inspireface.base.FaceInteractionsActions
 import com.insightface.sdk.inspireface.base.FaceMaskConfidence
 import com.insightface.sdk.inspireface.base.FaceQualityConfidence
+import com.insightface.sdk.inspireface.base.FaceBasicToken
 import com.insightface.sdk.inspireface.base.FaceRect
 import com.insightface.sdk.inspireface.base.FaceFeature
 import com.insightface.sdk.inspireface.base.ImageStream
@@ -34,7 +35,7 @@ object FaceAnalyzer {
     data class Face(
         val index: Int,
         val rect: RectF,
-        val token: Long,
+        val token: FaceBasicToken,
         val denseLandmarks: List<Point2f>?,
         val feature: FaceFeature?,
         val crop: Bitmap?,
@@ -58,6 +59,7 @@ object FaceAnalyzer {
     data class Recognition(
         val matched: Boolean,
         val identityId: Long,
+        val name: String?,
         val confidence: Float,
         val threshold: Float,
     )
@@ -115,7 +117,8 @@ object FaceAnalyzer {
             val out = ArrayList<Face>(faces.detectedNum)
             for (i in 0 until faces.detectedNum) {
                 val fr: FaceRect = faces.rects[i]
-                val rect = RectF(fr.x, fr.y, fr.x + fr.width, fr.y + fr.height)
+                val rect = RectF(fr.x.toFloat(), fr.y.toFloat(),
+                    (fr.x + fr.width).toFloat(), (fr.y + fr.height).toFloat())
                 val token = faces.tokens[i]
 
                 val feature = InspireFace.ExtractFaceFeature(session, stream, token)
@@ -137,8 +140,9 @@ object FaceAnalyzer {
                     rightEyeConfidence = floatAt(eyeStates?.rightEyeStatusConfidence, i),
                 )
 
-                val recognition = if (repository != null && feature != null) {
-                    repository.search(feature, threshold)
+                val recognition: Recognition? = if (repository != null && feature != null) {
+                    val sr = repository.search(feature, threshold)
+                    Recognition(sr.matched, sr.record?.id ?: 0L, sr.record?.name, sr.confidence, sr.threshold)
                 } else null
 
                 out.add(Face(i, rect, token, landmarks?.toList(), feature, crop, attrs, recognition))
