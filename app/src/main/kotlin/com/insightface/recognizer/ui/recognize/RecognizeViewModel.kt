@@ -24,8 +24,18 @@ class RecognizeViewModel : ViewModel() {
         data class Error(val message: String) : UiState
     }
 
+    sealed interface RegisterState {
+        data object Idle : RegisterState
+        data object Registering : RegisterState
+        data class Success(val name: String) : RegisterState
+        data class Failed(val message: String) : RegisterState
+    }
+
     private val _state = MutableStateFlow<UiState>(UiState.Idle)
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val registerState: StateFlow<RegisterState> = _registerState.asStateFlow()
 
     fun analyze(uri: Uri) {
         _state.value = UiState.Loading
@@ -45,9 +55,16 @@ class RecognizeViewModel : ViewModel() {
     }
 
     /** Registers [face]'s feature + crop into the local FeatureHub under [name]. */
-    fun registerFace(face: FaceAnalyzer.Face, name: String, onDone: (Boolean) -> Unit) {
-        val feature = face.feature ?: run { onDone(false); return }
-        val crop = face.crop ?: run { onDone(false); return }
+    fun registerFace(face: FaceAnalyzer.Face, name: String) {
+        val feature = face.feature ?: run {
+            _registerState.value = RegisterState.Failed("未提取到人脸特征，无法注册")
+            return
+        }
+        val crop = face.crop ?: run {
+            _registerState.value = RegisterState.Failed("未获取到人脸裁剪图，无法注册")
+            return
+        }
+        _registerState.value = RegisterState.Registering
         viewModelScope.launch {
             val res: FaceRepository.InsertResult = faceManager.register(name, feature, crop)
             if (res.success) {
@@ -57,9 +74,17 @@ class RecognizeViewModel : ViewModel() {
                     val refreshed = faceManager.analyze(current.bitmap)
                     _state.value = UiState.Ready(current.bitmap, refreshed)
                 }
+                _registerState.value = RegisterState.Success(name)
+            } else {
+                _registerState.value = RegisterState.Failed(
+                    "注册失败，请确保引擎已就绪且人脸特征已提取"
+                )
             }
-            onDone(res.success)
         }
+    }
+
+    fun clearRegisterState() {
+        _registerState.value = RegisterState.Idle
     }
 
     fun reset() {

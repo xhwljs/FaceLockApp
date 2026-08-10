@@ -20,7 +20,17 @@ class ManageViewModel : ViewModel() {
     private val _keyword = MutableStateFlow("")
     val keyword: StateFlow<String> = _keyword.asStateFlow()
 
-    init { refresh() }
+    init {
+        // Observe engine state — when it becomes READY (or model switches), auto-refresh
+        // the face library so the list is never stuck empty after a slow SDK launch.
+        viewModelScope.launch {
+            faceManager.state.collect { state ->
+                if (state == FaceManager.State.READY) {
+                    refresh()
+                }
+            }
+        }
+    }
 
     fun setKeyword(value: String) {
         _keyword.value = value

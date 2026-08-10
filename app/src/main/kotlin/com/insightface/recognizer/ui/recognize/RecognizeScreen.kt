@@ -46,6 +46,7 @@ import com.insightface.recognizer.data.FaceAnalyzer
 @Composable
 fun RecognizeScreen(vm: RecognizeViewModel = viewModel()) {
     val uiState by vm.state.collectAsState()
+    val registerState by vm.registerState.collectAsState()
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> if (uri != null) vm.analyze(uri) }
@@ -83,10 +84,44 @@ fun RecognizeScreen(vm: RecognizeViewModel = viewModel()) {
             onConfirm = {
                 val f = face
                 registeringFace = null
-                vm.registerFace(f, registerName) { /* result reflected via state refresh */ }
+                vm.registerFace(f, registerName)
             },
             onDismiss = { registeringFace = null },
         )
+    }
+
+    // Registration result feedback
+    when (val rs = registerState) {
+        is RecognizeViewModel.RegisterState.Success -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { vm.clearRegisterState() },
+                title = { Text("注册成功") },
+                text = { Text("人脸「${rs.name}」已注册到人脸库。") },
+                confirmButton = {
+                    TextButton(onClick = { vm.clearRegisterState() }) { Text("确定") }
+                },
+            )
+        }
+        is RecognizeViewModel.RegisterState.Failed -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { vm.clearRegisterState() },
+                title = { Text("注册失败") },
+                text = { Text(rs.message) },
+                confirmButton = {
+                    TextButton(onClick = { vm.clearRegisterState() }) { Text("确定") }
+                },
+            )
+        }
+        is RecognizeViewModel.RegisterState.Registering -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text("正在注册到人脸库…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        RecognizeViewModel.RegisterState.Idle -> Unit
     }
 }
 

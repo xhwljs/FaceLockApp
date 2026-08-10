@@ -2,6 +2,7 @@ package com.insightface.recognizer.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,10 +75,7 @@ fun SettingsScreen() {
 
         // --- Model switcher ---
         SectionCard("识别模型") {
-            val currentModel = when (faceState) {
-                FaceManager.State.READY, FaceManager.State.LAUNCHING -> FaceEngine.DEFAULT_MODEL
-                else -> FaceEngine.DEFAULT_MODEL
-            }
+            val currentModel by app.faceManager.currentModel.collectAsState()
             Text(
                 "InspireFace 模型包（随 JitPack AAR 内置）。切换会重新加载引擎与人脸库。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -93,7 +91,7 @@ fun SettingsScreen() {
                 }
             }
             Text(
-                "引擎状态：${faceState.name}",
+                "引擎状态：${faceState.name} | 当前模型：$currentModel",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -153,7 +151,11 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun ThemeChip(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
     val swatch = theme.colors().primary
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
         Box(
             modifier = Modifier
                 .size(56.dp)

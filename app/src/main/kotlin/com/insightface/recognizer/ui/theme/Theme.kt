@@ -6,6 +6,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
@@ -16,14 +19,14 @@ val LocalThemeManager = staticCompositionLocalOf<ThemeManager> {
     error("ThemeManager not provided")
 }
 
-/** Persists the selected [AppTheme] and exposes it as a reactive state. */
+/** Persists the selected [AppTheme] and exposes it as a reactive Compose state. */
 class ThemeManager(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("ui_settings", Context.MODE_PRIVATE)
 
-    private var _current: AppTheme = loadTheme()
-
-    val current: AppTheme get() = _current
+    // mutableStateOf so Compose recomposes when the theme changes.
+    var current: AppTheme by mutableStateOf(loadTheme())
+        private set
 
     private fun loadTheme(): AppTheme {
         val name = prefs.getString(KEY_THEME, AppTheme.Navy.name) ?: AppTheme.Navy.name
@@ -31,8 +34,8 @@ class ThemeManager(context: Context) {
     }
 
     fun setTheme(theme: AppTheme) {
-        if (theme == _current) return
-        _current = theme
+        if (theme == current) return
+        current = theme
         prefs.edit().putString(KEY_THEME, theme.name).apply()
     }
 

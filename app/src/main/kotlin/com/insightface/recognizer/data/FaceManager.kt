@@ -27,6 +27,9 @@ class FaceManager(private val app: Context) {
     private val _state = MutableStateFlow(State.NOT_LAUNCHED)
     val state: StateFlow<State> = _state.asStateFlow()
 
+    private val _currentModel = MutableStateFlow(FaceEngine.DEFAULT_MODEL)
+    val currentModel: StateFlow<String> = _currentModel.asStateFlow()
+
     // The single SDK owner thread. All InspireFace + FeatureHub calls happen here — the SDK
     // requires session/stream access to be single-threaded.
     private val sdkDispatcher = Executors.newSingleThreadExecutor { r ->
@@ -43,6 +46,7 @@ class FaceManager(private val app: Context) {
     fun launch(model: String = FaceEngine.DEFAULT_MODEL) {
         if (_state.value == State.LAUNCHING || _state.value == State.READY) return
         _state.value = State.LAUNCHING
+        _currentModel.value = model
         sdkScope.launch {
             val ok = FaceEngine.ensureLaunched(app, model)
             if (ok) {
@@ -55,13 +59,18 @@ class FaceManager(private val app: Context) {
 
     /** Re-launches with a different model (terminates the previous one first). */
     fun switchModel(model: String) {
+        if (_currentModel.value == model && _state.value == State.READY) return
+        _state.value = State.LAUNCHING
+        _currentModel.value = model
         sdkScope.launch {
             repository?.close()
             repository = null
-            FaceEngine.ensureLaunched(app, model)
-            val repo = FaceRepository(app, model)
-            if (repo.open()) repository = repo
-            _state.value = if (FaceEngine.isLaunched) State.READY else State.FAILED
+            val ok = FaceEngine.ensureLaunched(app, model)
+            if (ok) {
+                val repo = FaceRepository(app, model)
+                if (repo.open()) repository = repo
+            }
+            _state.value = if (ok) State.READY else State.FAILED
         }
     }
 
@@ -84,7 +93,7 @@ class FaceManager(private val app: Context) {
             repository?.query(keyword) ?: emptyList()
         }
 
-    suspend fun register(name: String, feature: com.insightface.sdk.inspireface.base.FaceFeature, crop: Bitmap) =
+    suspend fun register(name: String, feature: com.insightface.sdk.inspireface.base.FaceFeature, crop: Bitmap): FaceRepository.InsertResult =
         withContext(sdkScope.coroutineContext) {
             repository?.insert(name, feature, crop) ?: FaceRepository.InsertResult(false, null)
         }

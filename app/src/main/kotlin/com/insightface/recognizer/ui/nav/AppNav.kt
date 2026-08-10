@@ -40,6 +40,19 @@ fun AppNav() {
     val backStack by navController.currentBackStackEntryAsState()
     val current = backStack?.destination
 
+    // Shared navigation logic used by both the bottom bar and HomeScreen action cards.
+    // Uses popUpTo(startDestination){saveState=true} + launchSingleTop + restoreState so
+    // tab switching is consistent regardless of which entry point triggered the navigation.
+    val navigateTo: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -47,15 +60,7 @@ fun AppNav() {
                     val selected = current?.hierarchy?.any { it.route == dest.route } == true
                     NavigationBarItem(
                         selected = selected,
-                        onClick = {
-                            navController.navigate(dest.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        onClick = { navigateTo(dest.route) },
                         icon = { Icon(dest.icon, contentDescription = dest.label) },
                         label = { Text(dest.label) },
                     )
@@ -68,7 +73,7 @@ fun AppNav() {
             startDestination = Dest.Home.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Dest.Home.route) { HomeScreen(navController::navigate) }
+            composable(Dest.Home.route) { HomeScreen(navigateTo) }
             composable(Dest.Recognize.route) { RecognizeScreen() }
             composable(Dest.Manage.route) { ManageScreen() }
             composable(Dest.Settings.route) { SettingsScreen() }
