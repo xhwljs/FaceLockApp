@@ -2,9 +2,10 @@ package com.insightface.recognizer.ui.nav
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -26,9 +27,9 @@ import com.insightface.recognizer.ui.recognize.RecognizeScreen
 import com.insightface.recognizer.ui.settings.SettingsScreen
 
 private sealed class Dest(val route: String, val label: String, val icon: ImageVector) {
-    data object Home : Dest("home", "首页", Icons.Outlined.Face)
+    data object Home : Dest("home", "首页", Icons.Outlined.Home)
     data object Recognize : Dest("recognize", "识别", Icons.Outlined.ImageSearch)
-    data object Manage : Dest("manage", "人脸库", Icons.Outlined.Face)
+    data object Manage : Dest("manage", "人脸库", Icons.Outlined.VerifiedUser)
     data object Settings : Dest("settings", "设置", Icons.Outlined.Settings)
 }
 

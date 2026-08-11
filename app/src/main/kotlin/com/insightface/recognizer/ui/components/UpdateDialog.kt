@@ -1,5 +1,7 @@
 package com.insightface.recognizer.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.insightface.recognizer.App
@@ -29,15 +32,18 @@ fun UpdateDialog(state: AppUpdateManager.State) {
             progress = state.progress,
             downloadedBytes = state.downloadedBytes,
             totalBytes = state.totalBytes,
+            forceUpdate = state.forceUpdate,
         )
         is AppUpdateManager.State.ReadyToInstall -> ReadyToInstallDialog(state.apkUri, state.forceUpdate)
-        is AppUpdateManager.State.Error -> ErrorDialog(state.message)
+        is AppUpdateManager.State.Error -> ErrorDialog(state.message, state.forceUpdate)
         else -> Unit
     }
 }
 
 @Composable
 private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable) {
+    val manager = App.get().updateManager
+    val context = LocalContext.current
     val release = state.result.release
     val force = state.forceUpdate
     val hasApk = release?.apkAsset != null
@@ -47,7 +53,8 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
 
     AlertDialog(
         onDismissRequest = {
-            // 强制更新不允许关闭对话框；非强制更新可稍后再说。
+            // 强制更新不允许关闭；非强制更新可稍后再说。
+            if (!force) manager.dismiss()
         },
         title = {
             val tag = if (force) "（强制更新）" else ""
@@ -69,6 +76,11 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
                         fontWeight = FontWeight.Medium,
                     )
                 }
+                release?.apkAsset?.let { asset ->
+                    if (asset.size > 0) {
+                        Text("下载大小：${formatBytes(asset.size)}")
+                    }
+                }
                 release?.name?.takeIf { it.isNotBlank() }?.let {
                     Text("版本名称：$it")
                 }
@@ -87,16 +99,18 @@ private fun UpdateAvailableDialog(state: AppUpdateManager.State.UpdateAvailable)
         confirmButton = {
             if (hasApk && release != null) {
                 TextButton(onClick = {
-                    App.get().updateManager.download(release, force)
+                    manager.download(release, force)
                 }) { Text("立即更新") }
             } else {
-                TextButton(onClick = {}) { Text("前往 GitHub") }
+                TextButton(onClick = {
+                    release?.htmlUrl?.takeIf { it.isNotBlank() }?.let { openInBrowser(context, it) }
+                }) { Text("前往 GitHub") }
             }
         },
         dismissButton = {
             // 强制更新时不显示「稍后」按钮，用户只能更新。
             if (!force) {
-                TextButton(onClick = {}) { Text("稍后") }
+                TextButton(onClick = { manager.dismiss() }) { Text("稍后") }
             }
         },
     )
@@ -107,9 +121,14 @@ private fun DownloadingDialog(
     progress: Int,
     downloadedBytes: Long,
     totalBytes: Long,
+    forceUpdate: Boolean,
 ) {
+    val manager = App.get().updateManager
     AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = {
+            // 非强制更新允许取消下载；强制更新不可关闭。
+            if (!forceUpdate) manager.cancelDownload()
+        },
         title = { Text("正在下载更新") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -130,7 +149,12 @@ private fun DownloadingDialog(
             }
         },
         confirmButton = {},
-        dismissButton = {},
+        dismissButton = {
+            // 非强制更新才显示取消按钮。
+            if (!forceUpdate) {
+                TextButton(onClick = { manager.cancelDownload() }) { Text("取消") }
+            }
+        },
     )
 }
 
@@ -149,36 +173,68 @@ private fun formatBytes(bytes: Long): String {
 }
 
 @Composable
-private fun ReadyToInstallDialog(apkUri: android.net.Uri, forceUpdate: Boolean) {
+private fun ReadyToInstallDialog(apkUri: Uri, forceUpdate: Boolean) {
+    val manager = App.get().updateManager
     BackHandler(enabled = forceUpdate) { /* swallow back press */ }
     AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = {
+            // 强制更新不允许跳过安装；非强制可稍后安装。
+            if (!forceUpdate) manager.dismiss()
+        },
         title = { Text("更新已下载") },
         text = { Text("是否立即安装新版本？安装完成后应用将重启。") },
         confirmButton = {
-            TextButton(onClick = { App.get().updateManager.install(apkUri) }) {
+            TextButton(onClick = { manager.install(apkUri) }) {
                 Text("安装")
             }
         },
         dismissButton = {
             // 强制更新时不允许跳过安装。
             if (!forceUpdate) {
-                TextButton(onClick = {}) { Text("稍后") }
+                TextButton(onClick = { manager.dismiss() }) { Text("稍后") }
             }
         },
     )
 }
 
 @Composable
-private fun ErrorDialog(message: String) {
+private fun ErrorDialog(message: String, forceUpdate: Boolean) {
+    val manager = App.get().updateManager
+    // 强制更新失败时同样拦截返回键，迫使用户重试。
+    BackHandler(enabled = forceUpdate) { /* swallow back press */ }
     AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = {
+            if (!forceUpdate) manager.dismiss()
+        },
         title = { Text("更新检查失败") },
-        text = { Text(message) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(message)
+                if (forceUpdate) {
+                    Text(
+                        "此为强制更新，请检查网络后重试。",
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        },
         confirmButton = {
-            TextButton(onClick = {}) { Text("确定") }
+            TextButton(onClick = { manager.checkOnStartup() }) { Text("重试") }
+        },
+        dismissButton = {
+            if (!forceUpdate) {
+                TextButton(onClick = { manager.dismiss() }) { Text("确定") }
+            }
         },
     )
+}
+
+/** Opens [url] in the system browser via ACTION_VIEW. */
+private fun openInBrowser(context: android.content.Context, url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(intent) }
 }
 
 @Suppress("unused")
