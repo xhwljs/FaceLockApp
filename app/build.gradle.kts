@@ -15,8 +15,8 @@ android {
         minSdk = 24
         targetSdk = 35
         // versionCode/versionName are bumped by CI on release; see .github/workflows/android.yml
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
 
         ndk {
             // InspireFace 1.2.0 ships arm64-v8a / armeabi-v7a only (per official example).
